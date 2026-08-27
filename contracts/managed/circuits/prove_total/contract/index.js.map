@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "file": "index.js",
+  "sourceRoot": "../../../../../",
+  "sources": ["contracts/circuits/prove_total.compact", "compiler/standard-library.compact"],
+  "names": [],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EAgBA;;;;;;;;;;MAIA,AAAA,kBAEC;;OAAA;MAED,AAAA,WA2BC;;OAAA;;;;GACA;EApCD;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;GAoCC;ECpDD,AAAA,kBAAA;oEAAA;;;EDoBA,AAAA,qBAEC,CAFiC,QAAgB,EAAE,MAAe;mCACnB,QAAM,EAAE,MAAI;GAC3D;EAED,AAAA,cA2BC,CA1BC,SAAiB;iBACjB,OAAgB;iBAChB,SAAiB;iBACjB,OAAgB;iBAChB,SAAiB;iBACjB,OAAgB;iBAChB,SAAiB;iBACjB,OAAgB;iBAChB,QAAgB;iBAChB,aAAsB;iBACtB,aAAsB;iBACtB,aAAsB;iBACtB,aAAsB;;qEAGI,SAAO;qEAAE,OAAK;0CAAK,aAAW;;qEAC9B,SAAO;qEAAE,OAAK;0CAAK,aAAW;;qEAC9B,SAAO;qEAAE,OAAK;0CAAK,aAAW;;qEAC9B,SAAO;qEAAE,OAAK;0CAAK,aAAW;;UAGlD,OAA6C,GAArC,SAAO,GAAG,SAAO,GAAG,SAAO,GAAG,SAAO;0CAC5C,OAAK,EAAI,QAAM;;;GAIvB;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EA/BD,AAAA,kBAEC;;;;UAFiC,QAAgB;UAAE,MAAe;;;;;;;;;;;;;;;gDAAjC,QAAgB,EAAE,MAAe;GAElE;EAED,AAAA,WA2BC;;;;UA1BC,SAAiB;UACjB,OAAgB;UAChB,SAAiB;UACjB,OAAgB;UAChB,SAAiB;UACjB,OAAgB;UAChB,SAAiB;UACjB,OAAgB;UAChB,QAAgB;UAChB,aAAsB;UACtB,aAAsB;UACtB,aAAsB;UACtB,aAAsB;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;yCAZtB,SAAiB;yCACjB,OAAgB;yCAChB,SAAiB;yCACjB,OAAgB;yCAChB,SAAiB;yCACjB,OAAgB;yCAChB,SAAiB;yCACjB,OAAgB;yCAChB,QAAgB;yCAChB,aAAsB;yCACtB,aAAsB;yCACtB,aAAsB;yCACtB,aAAsB;GAcvB;;;;"
+}

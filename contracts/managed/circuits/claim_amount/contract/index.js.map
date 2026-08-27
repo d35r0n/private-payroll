@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "file": "index.js",
+  "sourceRoot": "../../../../../",
+  "sources": ["contracts/circuits/claim_amount.compact", "compiler/standard-library.compact"],
+  "names": [],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EAcA;;;;;;;;;;MAIA,AAAA,kBAEC;;OAAA;MAED,AAAA,YAUC;;OAAA;;;;GACA;EAnBD;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;GAmBC;ECjCD,AAAA,kBAAA;oEAAA;;;EDkBA,AAAA,qBAEC,CAFiC,QAAgB,EAAE,MAAe;mCACnB,QAAM,EAAE,MAAI;GAC3D;EAED,AAAA,eAUC,CATC,QAAgB,EAChB,MAAe,EACf,YAAqB;qEAGK,QAAM;qEAAE,MAAI;0CAAK,YAAU;;;GAItD;;;;;;;;;;;;;;;;;;;;;;;;;;;EAdD,AAAA,kBAEC;;;;UAFiC,QAAgB;UAAE,MAAe;;;;;;;;;;;;;;;gDAAjC,QAAgB,EAAE,MAAe;GAElE;EAED,AAAA,YAUC;;;;UATC,QAAgB;UAChB,MAAe;UACf,YAAqB;;;;;;;;;;;;;;;;;;;;;;0CAFrB,QAAgB,EAChB,MAAe,EACf,YAAqB;GAOtB;;;;"
+}

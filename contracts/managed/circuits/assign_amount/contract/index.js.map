@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "file": "index.js",
+  "sourceRoot": "../../../../../",
+  "sources": ["contracts/circuits/assign_amount.compact", "compiler/standard-library.compact"],
+  "names": [],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EAWA;;;;;;;;;;MAOA,AAAA,aAMC;;OAAA;;;;GACA;EAdD;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;GAcC;ECzBD,AAAA,kBAAA;oEAAA;;;EDkBA,AAAA,gBAMC,CAN4B,QAAgB,EAAE,MAAe;UAEtD,YAAkE,2BAAd,QAAM,EAAE,MAAI;WAG/D,YAAU;GAClB;;;;;;;;;;;;;;;;;;;;;;;EAND,AAAA,aAMC;;;;UAN4B,QAAgB;UAAE,MAAe;;;;;;;;;;;;;;;2CAAjC,QAAgB,EAAE,MAAe;GAM7D;;;;"
+}

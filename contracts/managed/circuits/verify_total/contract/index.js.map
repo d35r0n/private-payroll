@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "file": "index.js",
+  "sourceRoot": "../../../../../",
+  "sources": ["contracts/circuits/verify_total.compact"],
+  "names": [],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EAWA;;;;;;;;;;MAIA,AAAA,YAMC;;OAAA;;;;GACA;EAXD;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;GAWC;EAPD,AAAA,eAMC,CALC,cAAqB,EACrB,WAAkB;WAGX,cAAY,IAAI,WAAS;GACjC;;;;;;;;;;;;;;;;;;;;;;;EAND,AAAA,YAMC;;;;UALC,cAAqB;UACrB,WAAkB;;;;;;;;;;;;;;;0CADlB,cAAqB,EACrB,WAAkB;GAInB;;;;"
+}

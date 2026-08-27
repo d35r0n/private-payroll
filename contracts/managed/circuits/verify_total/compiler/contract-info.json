@@ -1,0 +1,35 @@
+{
+  "compiler-version": "0.31.1",
+  "language-version": "0.23.0",
+  "runtime-version": "0.16.0",
+  "circuits": [
+    {
+      "name": "verify_total",
+      "pure": true,
+      "proof": false,
+      "arguments": [
+        {
+          "name": "is_finalized",
+          "type": {
+            "type-name": "Boolean"
+          }
+        },
+        {
+          "name": "sum_valid",
+          "type": {
+            "type-name": "Boolean"
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Boolean"
+      }
+    }
+  ],
+  "witnesses": [
+  ],
+  "contracts": [
+  ],
+  "ledger": [
+  ]
+}

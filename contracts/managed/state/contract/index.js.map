@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "file": "index.js",
+  "sourceRoot": "../../../../",
+  "sources": ["contracts/state.compact"],
+  "names": [],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EAUA;;;;;;;;;;;;;GAiCC;EAjCD;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;GAiCC;;;;;;;;;;;;;;;;;;;;;;;;;"
+}
