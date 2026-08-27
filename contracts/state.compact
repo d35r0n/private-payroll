@@ -1,0 +1,43 @@
+/**
+ * Step 5 — Contract state layout
+ *
+ * Defines on-chain ledger state for the Midnight Private Payroll system:
+ * - PayoutRound: Public ledger state tracking budget, employer, status, and assignment counts.
+ * - RecipientCommitment: Public commitment record per recipient slot (0..3).
+ * - SumProof: Verification result of total sum proof.
+ * - RecipientPrivateAmount: Specification of private state layout (witness shape).
+ */
+
+pragma language_version 0.23;
+
+import CompactStandardLibrary;
+
+// Round lifecycle status
+// 0 = Uninitialized / Empty
+// 1 = Assigning (Employer assigning private commitments)
+// 2 = Finalized (Sum proof validated; recipients can claim)
+struct PayoutRound {
+  budget:          Uint<64>,
+  employer:        Bytes<32>,
+  status:          Uint<8>,
+  assigned_count:  Uint<8>
+}
+
+// Public ledger state for each of the 4 recipient slots
+struct RecipientCommitment {
+  recipient_id:    Bytes<32>,
+  commitment_hash: Bytes<32>,
+  is_assigned:     Boolean,
+  claimed:         Boolean
+}
+
+// Sum proof result recorded on ledger
+struct SumProof {
+  valid: Boolean
+}
+
+// Private state layout per recipient (used in witnesses / client-side)
+struct RecipientPrivateAmount {
+  amount: Uint<64>,
+  salt:   Bytes<32>
+}

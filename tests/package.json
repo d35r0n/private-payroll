@@ -1,0 +1,12 @@
+{
+  "name": "private-payroll-tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "private-payroll-contract": "*"
+  }
+}
