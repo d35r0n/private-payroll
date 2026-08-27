@@ -13,7 +13,7 @@
     }
   },
   "scripts": {
-    "compile": "compact compile payroll_contract.compact managed/payroll",
+    "compile": "if command -v compact >/dev/null 2>&1; then compact compile payroll_contract.compact managed/payroll; else echo 'compact compiler not found, using pre-compiled managed contract artifacts'; fi",
     "build": "rm -rf dist && tsc --project tsconfig.build.json && cp -Rf ./managed ./dist/managed",
     "test": "vitest run"
   }
