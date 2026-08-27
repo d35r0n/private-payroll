@@ -1,0 +1,5 @@
+file 'f7_claim_ready.png'
+duration 5.5
+file 'f8_claimed.png'
+duration 8.16
+file 'f8_claimed.png'

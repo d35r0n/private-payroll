@@ -1,0 +1,5 @@
+file 'f5_finalize_ready.png'
+duration 4.5
+file 'f6_finalized.png'
+duration 6.54
+file 'f6_finalized.png'

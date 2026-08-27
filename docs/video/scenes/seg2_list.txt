@@ -1,0 +1,7 @@
+file 'f2_created.png'
+duration 4.0
+file 'f3_assign_calc.png'
+duration 5.0
+file 'f4_assign_done.png'
+duration 4.9
+file 'f4_assign_done.png'
