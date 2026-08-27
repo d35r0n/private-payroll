@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+contracts/dist/
+frontend/dist/
+frontend/public/keys/
+frontend/public/zkir/
+
+# Logs
+*.log
+.system_generated/
+
+# OS files
+.DS_Store
+Thumbs.db
