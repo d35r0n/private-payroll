@@ -1,0 +1,52 @@
+/**
+ * Step 2 — prove_total circuit
+ *
+ * Core Sum-Proof Circuit for Private Payroll:
+ *   - Private inputs: amount1..4 (Uint<64>), salt1..4 (Bytes<32>)
+ *   - Public inputs: budget (Uint<64>), commitment1..4 (Bytes<32>)
+ *
+ * Constraints:
+ *   1. hash(amount_i, salt_i) == commitment_i for each recipient i in [1, 4]
+ *   2. amount1 + amount2 + amount3 + amount4 == budget
+ *   3. All amounts are non-negative (inherent to Uint<64> type)
+ *
+ * Public output:
+ *   - Exactly one boolean: sum_valid (true). No individual amount or partial sum is exposed.
+ */
+
+pragma language_version 0.23;
+
+import CompactStandardLibrary;
+
+export circuit compute_commitment(amount: Uint<64>, salt: Bytes<32>): Bytes<32> {
+  return persistentHash<[Uint<64>, Bytes<32>]>([amount, salt]);
+}
+
+export circuit prove_total(
+  amount1: Uint<64>,
+  salt1: Bytes<32>,
+  amount2: Uint<64>,
+  salt2: Bytes<32>,
+  amount3: Uint<64>,
+  salt3: Bytes<32>,
+  amount4: Uint<64>,
+  salt4: Bytes<32>,
+  budget: Uint<64>,
+  commitment1: Bytes<32>,
+  commitment2: Bytes<32>,
+  commitment3: Bytes<32>,
+  commitment4: Bytes<32>
+): Boolean {
+  // Constraint 1: Verify authenticity of each amount against its stored public commitment
+  assert(compute_commitment(amount1, salt1) == commitment1, "commitment 1 mismatch");
+  assert(compute_commitment(amount2, salt2) == commitment2, "commitment 2 mismatch");
+  assert(compute_commitment(amount3, salt3) == commitment3, "commitment 3 mismatch");
+  assert(compute_commitment(amount4, salt4) == commitment4, "commitment 4 mismatch");
+
+  // Constraint 2: Sum of all private amounts must exactly match the public budget
+  const total = amount1 + amount2 + amount3 + amount4;
+  assert(total == budget, "sum of private amounts does not equal public budget");
+
+  // Output: Exclusively a single boolean indicating valid sum proof
+  return true;
+}

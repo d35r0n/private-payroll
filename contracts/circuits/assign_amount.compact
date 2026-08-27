@@ -1,0 +1,25 @@
+/**
+ * Step 1 — assign_amount circuit
+ *
+ * Takes private inputs (amount, salt), computes a cryptographic commitment
+ * hash(amount, salt), and returns commitment as a public value.
+ *
+ * Privacy Guarantee:
+ *   - The amount and salt remain strictly within private execution context.
+ *   - Only the 32-byte commitment hash is published.
+ */
+
+pragma language_version 0.23;
+
+import CompactStandardLibrary;
+
+// Computes the persistent commitment hash for an allocated amount and salt.
+// amount: Uint<64> - Private allocation amount
+// salt: Bytes<32> - Cryptographic blinding factor
+export circuit assign_amount(amount: Uint<64>, salt: Bytes<32>): Bytes<32> {
+  // Compute collision-resistant hash using persistentHash
+  const commitment = persistentHash<[Uint<64>, Bytes<32>]>([amount, salt]);
+  
+  // Return the public commitment hash
+  return commitment;
+}

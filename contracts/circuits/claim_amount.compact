@@ -1,0 +1,33 @@
+/**
+ * Step 3 — claim_amount circuit
+ *
+ * Recipient Claim Circuit:
+ *   - Private inputs: amount (Uint<64>), salt (Bytes<32>)
+ *   - Public input: commitment (Bytes<32>)
+ *
+ * Constraint:
+ *   - hash(amount, salt) == commitment
+ *
+ * Public output:
+ *   - Exactly one boolean: claimed = true. The amount is never exposed publicly.
+ */
+
+pragma language_version 0.23;
+
+import CompactStandardLibrary;
+
+export circuit compute_commitment(amount: Uint<64>, salt: Bytes<32>): Bytes<32> {
+  return persistentHash<[Uint<64>, Bytes<32>]>([amount, salt]);
+}
+
+export circuit claim_amount(
+  amount: Uint<64>,
+  salt: Bytes<32>,
+  commitment: Bytes<32>
+): Boolean {
+  // Constrain that provided amount and salt hash to the recipient's public commitment
+  assert(compute_commitment(amount, salt) == commitment, "claim verification failed: invalid amount or salt");
+
+  // Output: Boolean flag only
+  return true;
+}

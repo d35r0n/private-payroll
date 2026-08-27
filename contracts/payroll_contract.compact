@@ -1,0 +1,300 @@
+/**
+ * Midnight Private Payroll / Splits Smart Contract
+ * Compact Language (0.23)
+ *
+ * Core Privacy Guarantees:
+ *   - Individual salary/split amounts NEVER appear in public ledger state or events.
+ *   - The employer provides private allocations and salts via ZK witnesses.
+ *   - The contract ZK-proves that sum(amounts) == budget during finalize_round.
+ *   - Each recipient claims strictly their own allocation with their private witness.
+ *   - Public ledger exposes only: budget, recipient IDs, commitment hashes, claimed flags, and status.
+ */
+
+pragma language_version 0.23;
+
+import CompactStandardLibrary;
+
+// ──────────────────────────────────────────────
+// State Structs
+// ──────────────────────────────────────────────
+
+// Status: 0 = Uninitialized, 1 = Assigning, 2 = Finalized
+struct PayoutRound {
+  budget:         Uint<64>,
+  employer:       Bytes<32>,
+  status:         Uint<8>,
+  assigned_count: Uint<8>
+}
+
+struct RecipientCommitment {
+  recipient_id:    Bytes<32>,
+  commitment_hash: Bytes<32>,
+  is_assigned:     Boolean,
+  claimed:         Boolean
+}
+
+struct SumProof {
+  valid: Boolean
+}
+
+// ──────────────────────────────────────────────
+// Ledger State
+// ──────────────────────────────────────────────
+
+export ledger round: PayoutRound;
+export ledger commitments: Map<Uint<8>, RecipientCommitment>;
+export ledger sum_proof: SumProof;
+
+// ──────────────────────────────────────────────
+// Private Witnesses
+// ──────────────────────────────────────────────
+
+// Employer witnesses: provides private amount and salt for recipient index 0..3
+witness getEmployerAmount(recipient_index: Uint<8>): Uint<64>;
+witness getEmployerSalt(recipient_index: Uint<8>): Bytes<32>;
+
+// Recipient witnesses: provides recipient's own private amount and salt for claiming
+witness getRecipientAmount(recipient_index: Uint<8>): Uint<64>;
+witness getRecipientSalt(recipient_index: Uint<8>): Bytes<32>;
+
+// Caller identification witness
+witness getCallerAddress(): Bytes<32>;
+
+// ──────────────────────────────────────────────
+// Helper: Cryptographic Commitment Hash
+// ──────────────────────────────────────────────
+
+export circuit computeCommitment(amount: Uint<64>, salt: Bytes<32>): Bytes<32> {
+  return persistentHash<[Uint<64>, Bytes<32>]>([amount, salt]);
+}
+
+// ──────────────────────────────────────────────
+// Constructor / Initialization
+// ──────────────────────────────────────────────
+
+constructor(
+  budget: Uint<64>,
+  employer: Bytes<32>,
+  recipient0: Bytes<32>,
+  recipient1: Bytes<32>,
+  recipient2: Bytes<32>,
+  recipient3: Bytes<32>
+) {
+  assert(budget > 0, "budget must be greater than zero");
+
+  round = PayoutRound {
+    budget:         disclose(budget),
+    employer:       disclose(employer),
+    status:         1, // Assigning
+    assigned_count: 0
+  };
+
+  commitments.insert(0, RecipientCommitment {
+    recipient_id:    disclose(recipient0),
+    commitment_hash: default<Bytes<32>>,
+    is_assigned:     false,
+    claimed:         false
+  });
+
+  commitments.insert(1, RecipientCommitment {
+    recipient_id:    disclose(recipient1),
+    commitment_hash: default<Bytes<32>>,
+    is_assigned:     false,
+    claimed:         false
+  });
+
+  commitments.insert(2, RecipientCommitment {
+    recipient_id:    disclose(recipient2),
+    commitment_hash: default<Bytes<32>>,
+    is_assigned:     false,
+    claimed:         false
+  });
+
+  commitments.insert(3, RecipientCommitment {
+    recipient_id:    disclose(recipient3),
+    commitment_hash: default<Bytes<32>>,
+    is_assigned:     false,
+    claimed:         false
+  });
+
+  sum_proof = SumProof {
+    valid: false
+  };
+}
+
+// ──────────────────────────────────────────────
+// Entry Point: create_round (Alternative initializer)
+// ──────────────────────────────────────────────
+
+export circuit create_round(
+  budget: Uint<64>,
+  recipient0: Bytes<32>,
+  recipient1: Bytes<32>,
+  recipient2: Bytes<32>,
+  recipient3: Bytes<32>
+): [] {
+  const caller = getCallerAddress();
+  assert(budget > 0, "budget must be greater than zero");
+  assert(round.status == 0, "round already initialized");
+
+  round = PayoutRound {
+    budget:         disclose(budget),
+    employer:       disclose(caller),
+    status:         1, // Assigning
+    assigned_count: 0
+  };
+
+  commitments.insert(0, RecipientCommitment {
+    recipient_id:    disclose(recipient0),
+    commitment_hash: default<Bytes<32>>,
+    is_assigned:     false,
+    claimed:         false
+  });
+
+  commitments.insert(1, RecipientCommitment {
+    recipient_id:    disclose(recipient1),
+    commitment_hash: default<Bytes<32>>,
+    is_assigned:     false,
+    claimed:         false
+  });
+
+  commitments.insert(2, RecipientCommitment {
+    recipient_id:    disclose(recipient2),
+    commitment_hash: default<Bytes<32>>,
+    is_assigned:     false,
+    claimed:         false
+  });
+
+  commitments.insert(3, RecipientCommitment {
+    recipient_id:    disclose(recipient3),
+    commitment_hash: default<Bytes<32>>,
+    is_assigned:     false,
+    claimed:         false
+  });
+
+  sum_proof = SumProof {
+    valid: false
+  };
+}
+
+// ──────────────────────────────────────────────
+// Entry Point: assign_amount (Employer assigns commitment)
+// ──────────────────────────────────────────────
+
+export circuit assign_amount(
+  recipient_index: Uint<8>,
+  commitment_hash: Bytes<32>
+): [] {
+  const caller = getCallerAddress();
+  assert(caller == round.employer, "unauthorized: only employer can assign amounts");
+  assert(round.status == 1, "round is not in Assigning status");
+  assert(recipient_index < 4, "invalid recipient index (must be 0..3)");
+  assert(commitments.member(disclose(recipient_index)), "recipient slot not found");
+
+  const existing = commitments.lookup(disclose(recipient_index));
+  
+  // Update assigned count if this slot was not previously assigned
+  const was_assigned = existing.is_assigned;
+  const new_count = was_assigned ? round.assigned_count : ((round.assigned_count + 1) as Uint<8>);
+
+  commitments.insert(disclose(recipient_index), RecipientCommitment {
+    recipient_id:    existing.recipient_id,
+    commitment_hash: disclose(commitment_hash),
+    is_assigned:     true,
+    claimed:         false
+  });
+
+  round = PayoutRound {
+    budget:         round.budget,
+    employer:       round.employer,
+    status:         round.status,
+    assigned_count: new_count
+  };
+}
+
+// ──────────────────────────────────────────────
+// Entry Point: finalize_round (Proves sum equals budget)
+// ──────────────────────────────────────────────
+
+export circuit finalize_round(): [] {
+  const caller = getCallerAddress();
+  assert(caller == round.employer, "unauthorized: only employer can finalize round");
+  assert(round.status == 1, "round is not in Assigning status");
+  assert(round.assigned_count == 4, "cannot finalize: not all 4 recipients have been assigned");
+
+  // Ensure all 4 commitments exist and are marked assigned
+  assert(commitments.member(0) && commitments.lookup(0).is_assigned, "recipient 0 not assigned");
+  assert(commitments.member(1) && commitments.lookup(1).is_assigned, "recipient 1 not assigned");
+  assert(commitments.member(2) && commitments.lookup(2).is_assigned, "recipient 2 not assigned");
+  assert(commitments.member(3) && commitments.lookup(3).is_assigned, "recipient 3 not assigned");
+
+  // Fetch private amounts and salts via employer witness
+  const amt0 = getEmployerAmount(0);
+  const salt0 = getEmployerSalt(0);
+  const amt1 = getEmployerAmount(1);
+  const salt1 = getEmployerSalt(1);
+  const amt2 = getEmployerAmount(2);
+  const salt2 = getEmployerSalt(2);
+  const amt3 = getEmployerAmount(3);
+  const salt3 = getEmployerSalt(3);
+
+  // Constraint 1: Authenticity - Verify that private values match stored public commitments
+  assert(computeCommitment(amt0, salt0) == commitments.lookup(0).commitment_hash, "commitment 0 mismatch");
+  assert(computeCommitment(amt1, salt1) == commitments.lookup(1).commitment_hash, "commitment 1 mismatch");
+  assert(computeCommitment(amt2, salt2) == commitments.lookup(2).commitment_hash, "commitment 2 mismatch");
+  assert(computeCommitment(amt3, salt3) == commitments.lookup(3).commitment_hash, "commitment 3 mismatch");
+
+  // Constraint 2: Sum Constraint - Total of all 4 private allocations must equal public budget
+  const total = amt0 + amt1 + amt2 + amt3;
+  assert(total == round.budget, "sum of private amounts does not match public budget");
+
+  // Transition status to Finalized (2)
+  round = PayoutRound {
+    budget:         round.budget,
+    employer:       round.employer,
+    status:         2, // Finalized
+    assigned_count: round.assigned_count
+  };
+
+  sum_proof = SumProof {
+    valid: true
+  };
+}
+
+// ──────────────────────────────────────────────
+// Entry Point: claim_amount (Recipient claims payout)
+// ──────────────────────────────────────────────
+
+export circuit claim_amount(recipient_index: Uint<8>): [] {
+  const caller = getCallerAddress();
+  assert(round.status == 2, "round is not Finalized: cannot claim yet");
+  assert(recipient_index < 4, "invalid recipient index (must be 0..3)");
+  assert(commitments.member(disclose(recipient_index)), "recipient slot not found");
+
+  const entry = commitments.lookup(disclose(recipient_index));
+  assert(caller == entry.recipient_id, "unauthorized: caller is not the intended recipient");
+  assert(!entry.claimed, "double-claim rejected: recipient has already claimed");
+
+  // Recipient provides their private amount and salt
+  const claim_amt = getRecipientAmount(recipient_index);
+  const claim_salt = getRecipientSalt(recipient_index);
+
+  // Authenticate private claim against stored commitment
+  assert(computeCommitment(claim_amt, claim_salt) == entry.commitment_hash, "claim rejected: invalid amount or salt");
+
+  // Mark recipient as claimed on the public ledger (amount is NEVER disclosed)
+  commitments.insert(disclose(recipient_index), RecipientCommitment {
+    recipient_id:    entry.recipient_id,
+    commitment_hash: entry.commitment_hash,
+    is_assigned:     entry.is_assigned,
+    claimed:         true
+  });
+}
+
+// ──────────────────────────────────────────────
+// View: verify_total (Public read-only auditor view)
+// ──────────────────────────────────────────────
+
+export circuit verify_total(): Boolean {
+  return (round.status == 2) && sum_proof.valid;
+}
