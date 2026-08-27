@@ -56,7 +56,7 @@ export class LocalPrivateStateProvider {
         : undefined,
       employerAllocations: state.employerAllocations
         ? Object.fromEntries(
-            Object.entries(state.employerAllocations).map(([k, v]) => [
+            Object.entries(state.employerAllocations).map(([k, v]: [string, any]) => [
               k,
               {
                 amount: v.amount.toString(),

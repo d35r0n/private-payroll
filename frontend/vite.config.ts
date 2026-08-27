@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import wasm from 'vite-plugin-wasm';
+import path from 'path';
 
 export default defineConfig({
   cacheDir: './.vite',
@@ -53,6 +54,9 @@ export default defineConfig({
     ],
   },
   resolve: {
+    alias: {
+      'private-payroll-contract': path.resolve(__dirname, '../contracts/src/index.ts'),
+    },
     extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.wasm'],
     mainFields: ['browser', 'module', 'main'],
   },
