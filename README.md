@@ -25,6 +25,7 @@ Midnight natively enables dual-state architecture: combining public ledger state
 
 - **Live Demo:** [https://private-payroll-demo.midnight.network](https://private-payroll-demo.midnight.network) *(Placeholder)*
 - **Demo Video (1 min):** [Watch Demo Video (Google Drive)](https://drive.google.com/file/d/1sL4AQjZiVsMtkj93c4I3FVmOmKDhFVS0/view?usp=sharing) | Local MP4: [`docs/video/midnight-private-payroll-demo.mp4`](docs/video/midnight-private-payroll-demo.mp4)
+- **Demo Video Script & Instructions:** [`docs/DEMO_VIDEO_SCRIPT.md`](docs/DEMO_VIDEO_SCRIPT.md)
 
 ---
 
@@ -131,8 +132,8 @@ npm test
 ## Deployment
 
 - **Network:** Midnight Testnet (Preprod)
-- **Contract Address:** `020078ad39e09f4e2b810d7a6c3e1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f`
-- **Deployer:** `mn_addr_preprod1cwxnda70vl2cr96pgadmqjsxnffjt3h7eyc32gmx8wjkvshmg79qegx6kr`
+- **Contract Address:** [`3618f459d6e65a10b4a410d514f43d386197df363d9e378c1016df2e4995f075`](https://explorer.1am.xyz/contract/3618f459d6e65a10b4a410d514f43d386197df363d9e378c1016df2e4995f075?network=preprod)
+- **Deployment Transaction:** [`c0446bedf8d14e6885b7412a1d211e0f4363f510aef36cb13f6c9e4fce1f31e1`](https://explorer.1am.xyz/tx/c0446bedf8d14e6885b7412a1d211e0f4363f510aef36cb13f6c9e4fce1f31e1?network=preprod)
 
 ---
 
