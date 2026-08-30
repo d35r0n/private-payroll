@@ -24,8 +24,7 @@ Midnight natively enables dual-state architecture: combining public ledger state
 ## Live Demo & Video
 
 - **Live Demo:** [https://private-payroll-demo.midnight.network](https://private-payroll-demo.midnight.network) *(Placeholder)*
-- **Demo Video (1 min):** [Watch Demo Video (Google Drive)](https://drive.google.com/file/d/1sL4AQjZiVsMtkj93c4I3FVmOmKDhFVS0/view?usp=sharing) | Local MP4: [`docs/video/midnight-private-payroll-demo.mp4`](docs/video/midnight-private-payroll-demo.mp4)
-- **Demo Video Script & Instructions:** [`docs/DEMO_VIDEO_SCRIPT.md`](docs/DEMO_VIDEO_SCRIPT.md)
+- **Demo Video (1 min):** [Watch Demo Video (Google Drive)](https://drive.google.com/file/d/1QH_Xfdgcq3w9qwENj-oKa1MukIJiYFiq/view?usp=sharing) 
 
 ---
 
