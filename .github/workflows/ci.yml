@@ -11,14 +11,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+
       - name: Install dependencies
         run: npm ci
-      - name: Compile contracts/circuits
-        run: npm run compile
+
+      - name: Check managed contract artifacts are up-to-date
+        # The compact compiler is not available in CI runners.
+        # Developers who modify payroll_contract.compact MUST regenerate managed/
+        # locally (npm run compile) and commit the updated artifacts before pushing.
+        # This step enforces that invariant.
+        run: |
+          SOURCE="contracts/payroll_contract.compact"
+          ARTIFACT="contracts/managed/payroll/contract/index.js"
+          if [ ! -f "$ARTIFACT" ]; then
+            echo "ERROR: Compiled artifact '$ARTIFACT' is missing."
+            echo "Run 'npm run compile' locally (requires the Midnight compact compiler)"
+            echo "and commit the updated managed/ folder before pushing."
+            exit 1
+          fi
+          if [ "$SOURCE" -nt "$ARTIFACT" ]; then
+            echo "ERROR: '$SOURCE' is newer than '$ARTIFACT'."
+            echo "The Compact source was modified without regenerating managed artifacts."
+            echo "Run 'npm run compile' locally and commit the updated managed/ folder."
+            exit 1
+          fi
+          echo "✅ Managed artifacts are up-to-date."
+
       - name: Run tests
         run: npm test
+
       - name: Build frontend
         run: npm run build
