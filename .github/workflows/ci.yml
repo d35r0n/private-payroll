@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -23,7 +25,7 @@ jobs:
         # The compact compiler is not available in CI runners.
         # Developers who modify payroll_contract.compact MUST regenerate managed/
         # locally (npm run compile) and commit the updated artifacts before pushing.
-        # This step enforces that invariant.
+        # This step enforces that invariant using git commit history.
         run: |
           SOURCE="contracts/payroll_contract.compact"
           ARTIFACT="contracts/managed/payroll/contract/index.js"
@@ -33,8 +35,10 @@ jobs:
             echo "and commit the updated managed/ folder before pushing."
             exit 1
           fi
-          if [ "$SOURCE" -nt "$ARTIFACT" ]; then
-            echo "ERROR: '$SOURCE' is newer than '$ARTIFACT'."
+          SOURCE_TIME=$(git log -1 --format=%ct -- "contracts/payroll_contract.compact" "contracts/circuits" 2>/dev/null || echo 0)
+          ARTIFACT_TIME=$(git log -1 --format=%ct -- "contracts/managed" 2>/dev/null || echo 0)
+          if [ "$SOURCE_TIME" -gt "$ARTIFACT_TIME" ]; then
+            echo "ERROR: Compact contract source files were modified in git after managed artifacts."
             echo "The Compact source was modified without regenerating managed artifacts."
             echo "Run 'npm run compile' locally and commit the updated managed/ folder."
             exit 1

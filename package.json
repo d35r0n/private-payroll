@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "compile": "cd contracts && npm run compile",
-    "build": "npm run compile && cd contracts && npm run build && cd ../frontend && npm run build",
+    "build": "cd contracts && npm run build && cd ../frontend && npm run build",
     "test": "vitest run",
     "dev": "cd frontend && npm run dev",
     "deploy:preprod": "npx ts-node --esm scripts/deploy-preprod.ts"
