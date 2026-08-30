@@ -5,6 +5,14 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2'><path d='M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Midnight Private Payroll / Splits</title>
+    <script>
+      window.addEventListener('error', (event) => {
+        document.body.innerHTML += `<div style="color:red; padding:20px; font-family:monospace; background:#fee; border:1px solid red; margin:10px; white-space:pre-wrap; z-index:9999; position:relative;">Uncaught Error: ${event.error ? event.error.stack : event.message}</div>`;
+      });
+      window.addEventListener('unhandledrejection', (event) => {
+        document.body.innerHTML += `<div style="color:red; padding:20px; font-family:monospace; background:#fee; border:1px solid red; margin:10px; white-space:pre-wrap; z-index:9999; position:relative;">Unhandled Rejection: ${event.reason ? (event.reason.stack || event.reason) : event.reason}</div>`;
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

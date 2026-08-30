@@ -4,6 +4,15 @@ import type { InitialAPI, ConnectedAPI } from '@midnight-ntwrk/dapp-connector-ap
 const NETWORK_ID = (import.meta as any).env?.VITE_NETWORK_ID ?? 'preprod';
 const TAB_WALLET_KEY = 'midnight_payroll_active_wallet_address';
 const SIMULATED_MODE_KEY = 'midnight_payroll_simulated_mode';
+const WALLET_NAME_KEY = 'midnight_payroll_connected_wallet_name';
+
+export type DetectedWallet = {
+  id: string;
+  name: string;
+  icon?: string;
+  rdns?: string;
+  apiVersion?: string;
+};
 
 export type WalletState =
   | 'detecting'
@@ -15,10 +24,16 @@ export type UseWalletReturn = {
   walletState: WalletState;
   wallet: ConnectedAPI | null;
   address: string | null;
+  walletName: string | null;
   hasLaceExtension: boolean;
-  isRealLace: boolean;
+  hasOneAmExtension: boolean;
+  detectedWallets: DetectedWallet[];
+  isRealLace: boolean; // kept as boolean for real wallet (Lace or 1AM)
+  isRealWallet: boolean;
   error: string | null;
   connectLace: () => Promise<boolean>;
+  connectOneAm: () => Promise<boolean>;
+  connectWallet: (walletKeyOrId: string) => Promise<boolean>;
   connectPersona: (personaAddress: string) => void;
   disconnect: () => void;
   generateNewAccount: (prefix?: string) => string;
@@ -43,13 +58,57 @@ function generateRandomAddress(prefix = 'user'): string {
   return `midnight1_${prefix}_${hex}`;
 }
 
-function findWallet(): InitialAPI | undefined {
+/** Get all wallets registered under window.midnight */
+function getInstalledWallets(): Record<string, InitialAPI> {
   const midnight = (window as any).midnight;
-  if (!midnight) return undefined;
-  return Object.values(midnight).find(
-    (w): w is InitialAPI =>
-      !!w && typeof w === 'object' && 'apiVersion' in w,
-  );
+  if (!midnight || typeof midnight !== 'object') return {};
+  const result: Record<string, InitialAPI> = {};
+  for (const [key, val] of Object.entries(midnight)) {
+    if (val && typeof val === 'object' && 'apiVersion' in (val as any)) {
+      result[key] = val as InitialAPI;
+    }
+  }
+  return result;
+}
+
+/** Find Lace wallet specifically */
+function findLaceWallet(): { id: string; api: InitialAPI } | undefined {
+  const wallets = getInstalledWallets();
+  for (const [key, api] of Object.entries(wallets)) {
+    const name = (api.name || '').toLowerCase();
+    const rdns = (api.rdns || '').toLowerCase();
+    const id = key.toLowerCase();
+    if (name.includes('lace') || rdns.includes('lace') || id.includes('lace')) {
+      return { id: key, api };
+    }
+  }
+  // If only 1 wallet and not explicitly 1AM, assume default wallet
+  const entries = Object.entries(wallets);
+  if (entries.length === 1 && !entries[0][1].name?.toLowerCase().includes('1am')) {
+    return { id: entries[0][0], api: entries[0][1] };
+  }
+  return undefined;
+}
+
+/** Find 1AM wallet specifically */
+function findOneAmWallet(): { id: string; api: InitialAPI } | undefined {
+  const wallets = getInstalledWallets();
+  for (const [key, api] of Object.entries(wallets)) {
+    const name = (api.name || '').toLowerCase();
+    const rdns = (api.rdns || '').toLowerCase();
+    const id = key.toLowerCase();
+    if (
+      name.includes('1am') ||
+      name.includes('oneam') ||
+      rdns.includes('1am') ||
+      rdns.includes('oneam') ||
+      id.includes('1am') ||
+      id.includes('oneam')
+    ) {
+      return { id: key, api };
+    }
+  }
+  return undefined;
 }
 
 function extractErrorMessage(e: any): string {
@@ -66,92 +125,131 @@ function extractErrorMessage(e: any): string {
   }
 }
 
-export function friendlyError(e: any): string {
+export function friendlyError(e: any, walletName = 'Wallet'): string {
   const msg = extractErrorMessage(e);
   if (msg.includes('User rejected') || msg.includes('cancelled') || msg.includes('declined')) {
-    return 'Connection request was declined in the Lace Wallet popup.';
+    return `Connection request was declined in the ${walletName} popup.`;
   }
-  if (msg.includes('not authorized')) return 'Wallet authorization was rejected by the user.';
-  if (msg.includes('Network ID')) return 'Network mismatch. Please switch your Lace Wallet to the Midnight Preprod network.';
+  if (msg.includes('not authorized')) return `${walletName} authorization was rejected by the user.`;
+  if (msg.includes('Network ID')) return `Network mismatch. Please switch your ${walletName} to the Midnight Preprod network.`;
   if (msg.includes('insufficient') || msg.includes('DUST'))
     return 'Insufficient funds in wallet. Request testnet tokens from the Midnight Preprod faucet.';
   if (msg.includes('Failed to fetch') || msg.includes('Failed Proof Server'))
     return 'Cannot reach proof server. Check your network connection.';
-  return msg || 'Unexpected wallet error occurred.';
+  return msg || `Unexpected ${walletName} error occurred.`;
 }
 
 export function useWallet(): UseWalletReturn {
   const [walletState, setWalletState] = useState<WalletState>('disconnected');
-  const [walletAPI, setWalletAPI] = useState<InitialAPI | undefined>();
   const [wallet, setWallet] = useState<ConnectedAPI | null>(null);
+  const [walletName, setWalletName] = useState<string | null>(null);
   const [hasLaceExtension, setHasLaceExtension] = useState<boolean>(false);
-  const [isRealLace, setIsRealLace] = useState<boolean>(false);
+  const [hasOneAmExtension, setHasOneAmExtension] = useState<boolean>(false);
+  const [detectedWallets, setDetectedWallets] = useState<DetectedWallet[]>([]);
+  const [isRealWallet, setIsRealWallet] = useState<boolean>(false);
   const [address, setAddress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Check for Lace extension on mount without auto-connecting
+  // Check for installed wallet extensions on mount
   useEffect(() => {
     const detect = () => {
-      const found = findWallet();
-      if (found) {
-        setWalletAPI(found);
-        setHasLaceExtension(true);
-      } else {
-        setHasLaceExtension(false);
-      }
+      const wallets = getInstalledWallets();
+      const detected: DetectedWallet[] = Object.entries(wallets).map(([id, api]) => ({
+        id,
+        name: api.name || id,
+        icon: api.icon,
+        rdns: api.rdns,
+        apiVersion: api.apiVersion,
+      }));
+      setDetectedWallets(detected);
+      setHasLaceExtension(!!findLaceWallet());
+      setHasOneAmExtension(!!findOneAmWallet());
     };
 
     detect();
-    const timer = setTimeout(detect, 500);
-    return () => clearTimeout(timer);
+    const timer1 = setTimeout(detect, 500);
+    const timer2 = setTimeout(detect, 1500);
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
   }, []);
 
-  const connectLace = useCallback(async (): Promise<boolean> => {
+  const connectWalletByApi = async (api: InitialAPI, name: string): Promise<boolean> => {
     setError(null);
-    const api = walletAPI || findWallet();
-
-    if (!api) {
-      setError(
-        'Midnight Lace Wallet extension was not detected in this browser. To use a real wallet, install the Lace extension or choose a Simulated Persona.',
-      );
-      setWalletState('disconnected');
-      return false;
-    }
-
     setWalletState('connecting');
     try {
-      // Calls Lace extension -> Lace will open an authorization popup asking the user to confirm!
       const c = await api.connect(NETWORK_ID);
       setWallet(c);
       const { unshieldedAddress } = await c.getUnshieldedAddress();
       setAddress(unshieldedAddress);
-      setIsRealLace(true);
+      setIsRealWallet(true);
+      setWalletName(name);
       sessionStorage.setItem(TAB_WALLET_KEY, unshieldedAddress);
+      sessionStorage.setItem(WALLET_NAME_KEY, name);
       sessionStorage.removeItem(SIMULATED_MODE_KEY);
       setWalletState('connected');
       return true;
     } catch (e) {
-      setError(friendlyError(e));
+      setError(friendlyError(e, name));
       setWalletState('disconnected');
       return false;
     }
-  }, [walletAPI]);
+  };
+
+  const connectLace = useCallback(async (): Promise<boolean> => {
+    const found = findLaceWallet();
+    if (!found) {
+      setError(
+        'Midnight Lace Wallet extension was not detected. Please install the Lace extension or choose another wallet.',
+      );
+      setWalletState('disconnected');
+      return false;
+    }
+    return connectWalletByApi(found.api, found.api.name || 'Lace Wallet');
+  }, []);
+
+  const connectOneAm = useCallback(async (): Promise<boolean> => {
+    const found = findOneAmWallet();
+    if (!found) {
+      setError(
+        '1AM Wallet extension was not detected. Please install the 1AM Wallet extension or choose Lace Wallet.',
+      );
+      setWalletState('disconnected');
+      return false;
+    }
+    return connectWalletByApi(found.api, found.api.name || '1AM Wallet');
+  }, []);
+
+  const connectWallet = useCallback(async (walletKeyOrId: string): Promise<boolean> => {
+    const wallets = getInstalledWallets();
+    const api = wallets[walletKeyOrId];
+    if (!api) {
+      setError(`Wallet "${walletKeyOrId}" was not found.`);
+      return false;
+    }
+    return connectWalletByApi(api, api.name || walletKeyOrId);
+  }, []);
 
   const connectPersona = useCallback((personaAddress: string) => {
     setError(null);
     setAddress(personaAddress);
-    setIsRealLace(false);
+    setIsRealWallet(false);
+    setWalletName('Simulated Persona');
     sessionStorage.setItem(TAB_WALLET_KEY, personaAddress);
     sessionStorage.setItem(SIMULATED_MODE_KEY, 'true');
+    sessionStorage.setItem(WALLET_NAME_KEY, 'Simulated Persona');
     setWalletState('connected');
   }, []);
 
   const disconnect = useCallback(() => {
     setWallet(null);
     setAddress(null);
+    setWalletName(null);
     sessionStorage.removeItem(TAB_WALLET_KEY);
     sessionStorage.removeItem(SIMULATED_MODE_KEY);
-    setIsRealLace(false);
+    sessionStorage.removeItem(WALLET_NAME_KEY);
+    setIsRealWallet(false);
     setWalletState('disconnected');
     setError(null);
   }, []);
@@ -159,9 +257,11 @@ export function useWallet(): UseWalletReturn {
   const generateNewAccount = useCallback((prefix = 'user') => {
     const newAddr = generateRandomAddress(prefix);
     setAddress(newAddr);
+    setWalletName('Simulated Persona');
     sessionStorage.setItem(TAB_WALLET_KEY, newAddr);
     sessionStorage.setItem(SIMULATED_MODE_KEY, 'true');
-    setIsRealLace(false);
+    sessionStorage.setItem(WALLET_NAME_KEY, 'Simulated Persona');
+    setIsRealWallet(false);
     setWalletState('connected');
     return newAddr;
   }, []);
@@ -170,10 +270,16 @@ export function useWallet(): UseWalletReturn {
     walletState,
     wallet,
     address,
+    walletName,
     hasLaceExtension,
-    isRealLace,
+    hasOneAmExtension,
+    detectedWallets,
+    isRealLace: isRealWallet, // keep isRealLace alias for backwards compatibility
+    isRealWallet,
     error,
     connectLace,
+    connectOneAm,
+    connectWallet,
     connectPersona,
     disconnect,
     generateNewAccount,

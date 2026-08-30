@@ -6,53 +6,60 @@ import {
   hexToBytes,
   pureCircuits,
   payrollService,
+  matchAddress,
 } from '../contractService';
 import { PRESET_WALLETS } from '../hooks/useWallet';
-import { Lock, Send, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Lock, Send, CheckCircle2, AlertCircle, RefreshCw, AlertTriangle } from 'lucide-react';
+
+import type { ConnectedAPI } from '@midnight-ntwrk/dapp-connector-api';
 
 type AssignAmountsProps = {
   currentAddress: string;
+  wallet?:        ConnectedAPI | null;
+  isRealLace:     boolean;
   onAllAssigned?: () => void;
 };
 
 export const AssignAmounts: React.FC<AssignAmountsProps> = ({
   currentAddress,
+  wallet,
+  isRealLace,
   onAllAssigned,
 }) => {
-  const { payrollState, assignAmount, loading, error, clearError } = usePayroll();
+  const { payrollState, assignAmount, loading, error, clearError } = usePayroll(wallet);
 
-  // Local private inputs
-  const [amounts, setAmounts] = useState<string[]>(['2500', '3500', '1800', '2200']);
-  const [salts, setSalts] = useState<string[]>(() => [
+  // Local private inputs — never sent to the chain except as commitments
+  const [amounts, setAmounts]       = useState<string[]>(['2500', '3500', '1800', '2200']);
+  const [salts, setSalts]           = useState<string[]>(() => [
     bytesToHex(generateSalt()),
     bytesToHex(generateSalt()),
     bytesToHex(generateSalt()),
     bytesToHex(generateSalt()),
   ]);
-
   const [assignedStatus, setAssignedStatus] = useState<boolean[]>([false, false, false, false]);
-  const [activeStepMsg, setActiveStepMsg] = useState<string | null>(null);
+  const [activeStepMsg, setActiveStepMsg]   = useState<string | null>(null);
 
-  // Restore stored allocations on load
+  // Restore stored allocations on load (if employer assigned in same session)
   useEffect(() => {
     const stored = payrollService.getStoredEmployerAllocations();
     const newAmounts = [...amounts];
-    const newSalts = [...salts];
-    const newStatus = [false, false, false, false];
+    const newSalts   = [...salts];
+    const newStatus  = [false, false, false, false];
 
     for (let i = 0; i < 4; i++) {
       if (stored[i]) {
         newAmounts[i] = stored[i].amount.toString();
-        newSalts[i] = stored[i].saltHex;
-        newStatus[i] = true;
+        newSalts[i]   = stored[i].saltHex;
+        newStatus[i]  = true;
       }
     }
     setAmounts(newAmounts);
     setSalts(newSalts);
     setAssignedStatus(newStatus);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payrollState]);
 
-  // Client-side running total calculation for employer self-check (never transmitted)
+  // Client-side running total for employer self-check (never transmitted)
   const runningTotal = useMemo(() => {
     return amounts.reduce((acc, curr) => {
       const val = BigInt(curr || '0');
@@ -60,14 +67,13 @@ export const AssignAmounts: React.FC<AssignAmountsProps> = ({
     }, 0n);
   }, [amounts]);
 
-  const budget = payrollState?.budget ?? 0n;
+  const budget        = payrollState?.budget ?? 0n;
   const isSumMatching = runningTotal === budget;
 
   const handleAmountChange = (index: number, val: string) => {
     const next = [...amounts];
     next[index] = val;
     setAmounts(next);
-    // Invalidate assignment status on change
     const nextStatus = [...assignedStatus];
     nextStatus[index] = false;
     setAssignedStatus(nextStatus);
@@ -87,17 +93,17 @@ export const AssignAmounts: React.FC<AssignAmountsProps> = ({
     clearError();
     setActiveStepMsg(null);
 
-    const amt = BigInt(amounts[index] || '0');
+    const amt       = BigInt(amounts[index] || '0');
     const saltBytes = hexToBytes(salts[index]);
 
     try {
-      await assignAmount(index, amt, saltBytes, currentAddress);
+      await assignAmount(index, amt, saltBytes);
       const nextStatus = [...assignedStatus];
       nextStatus[index] = true;
       setAssignedStatus(nextStatus);
-      setActiveStepMsg(`Recipient ${index + 1} commitment submitted successfully!`);
-    } catch (err) {
-      // handled
+      setActiveStepMsg(`Recipient ${index + 1} commitment submitted on-chain!`);
+    } catch {
+      // handled by usePayroll
     }
   };
 
@@ -108,15 +114,15 @@ export const AssignAmounts: React.FC<AssignAmountsProps> = ({
 
     try {
       for (let i = 0; i < 4; i++) {
-        const amt = BigInt(amounts[i] || '0');
+        const amt       = BigInt(amounts[i] || '0');
         const saltBytes = hexToBytes(salts[i]);
-        await assignAmount(i, amt, saltBytes, currentAddress);
+        await assignAmount(i, amt, saltBytes);
       }
       setAssignedStatus([true, true, true, true]);
-      setActiveStepMsg('All 4 recipient commitments successfully submitted on-chain!');
+      setActiveStepMsg('All 4 recipient commitments submitted on-chain!');
       if (onAllAssigned) onAllAssigned();
-    } catch (err) {
-      // handled
+    } catch {
+      // handled by usePayroll
     }
   };
 
@@ -132,7 +138,7 @@ export const AssignAmounts: React.FC<AssignAmountsProps> = ({
     );
   }
 
-  const isEmployer = payrollState.employer === currentAddress;
+  const isEmployer = matchAddress(payrollState.employer, currentAddress);
 
   if (!isEmployer) {
     return (
@@ -145,7 +151,7 @@ export const AssignAmounts: React.FC<AssignAmountsProps> = ({
             <br />
             Employer: <span className="mono">{payrollState.employer}</span>
             <br />
-            Current: <span className="mono">{currentAddress}</span>
+            Current:  <span className="mono">{currentAddress}</span>
           </div>
         </div>
       </div>
@@ -160,8 +166,18 @@ export const AssignAmounts: React.FC<AssignAmountsProps> = ({
       </div>
 
       <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '16px' }}>
-        Enter allocation amounts for each recipient. Each amount is blinded with a cryptographically secure client-side salt to generate a <strong>ZK commitment</strong>. The amounts remain private and are never broadcast on-chain.
+        Enter allocation amounts for each recipient. Each amount is blinded with a
+        cryptographically secure salt to produce a <strong>ZK commitment</strong> that is
+        published on-chain. The amounts themselves remain private and are never broadcast.
       </p>
+
+      {/* Lace guard */}
+      {!isRealLace && (
+        <div className="callout callout-warning" style={{ marginBottom: '16px' }}>
+          <AlertTriangle size={18} />
+          <div>Connect Midnight Wallet (Lace / 1AM) to submit assignment transactions.</div>
+        </div>
+      )}
 
       {error && (
         <div className="callout" style={{ background: 'var(--danger-bg)', borderColor: 'var(--danger)', color: '#fca5a5', marginBottom: '16px' }}>
@@ -176,7 +192,7 @@ export const AssignAmounts: React.FC<AssignAmountsProps> = ({
         </div>
       )}
 
-      {/* Running Total Card - Local employer self check */}
+      {/* Running total self-check */}
       <div
         style={{
           background: isSumMatching ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
@@ -212,28 +228,23 @@ export const AssignAmounts: React.FC<AssignAmountsProps> = ({
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {payrollState.recipients.map((recip, idx) => {
-          const saltBytes = hexToBytes(salts[idx]);
-          const amt = BigInt(amounts[idx] || '0');
+          const saltBytes   = hexToBytes(salts[idx]);
+          const amt         = BigInt(amounts[idx] || '0');
           const commitBytes = pureCircuits.computeCommitment(amt, saltBytes);
-          const commitHex = bytesToHex(commitBytes);
+          const commitHex   = bytesToHex(commitBytes);
           const isSlotAssigned = assignedStatus[idx] || recip.is_assigned;
 
           return (
             <div
               key={idx}
-              style={{
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '8px',
-                padding: '16px',
-              }}
+              style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
                 <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
                   Recipient {idx + 1}: <span className="mono" style={{ color: 'var(--text-muted)' }}>{recip.address}</span>
                 </div>
                 {isSlotAssigned ? (
-                  <span className="badge badge-success">Assigned On-Chain</span>
+                  <span className="badge badge-success">Committed On-Chain</span>
                 ) : (
                   <span className="badge badge-warning">Pending Submission</span>
                 )}
@@ -283,7 +294,7 @@ export const AssignAmounts: React.FC<AssignAmountsProps> = ({
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => handleAssignSingle(idx)}
-                  disabled={loading || isSlotAssigned || payrollState.status === 'Finalized'}
+                  disabled={loading || isSlotAssigned || payrollState.status === 'Finalized' || !isRealLace}
                   style={{ fontSize: '0.8rem', padding: '6px 12px' }}
                 >
                   <Send size={14} />
@@ -297,16 +308,17 @@ export const AssignAmounts: React.FC<AssignAmountsProps> = ({
 
       <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          * Notice: Individual amounts and salts are saved in local private state for generating the ZK sum proof.
+          * Amounts and salts are stored locally as private witness data for the ZK sum proof.
+          They are never broadcast on-chain.
         </div>
         <button
           type="button"
           className="btn btn-primary"
           onClick={handleAssignAll}
-          disabled={loading || !isSumMatching || payrollState.status === 'Finalized'}
+          disabled={loading || !isSumMatching || payrollState.status === 'Finalized' || !isRealLace}
         >
           <Lock size={16} />
-          {loading ? 'Submitting Commitments...' : 'Submit All 4 Commitments'}
+          {loading ? 'Submitting On-Chain...' : 'Submit All 4 Commitments'}
         </button>
       </div>
     </div>

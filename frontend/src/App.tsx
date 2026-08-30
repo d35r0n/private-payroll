@@ -30,21 +30,29 @@ type Tab = 'create' | 'assign' | 'finalize' | 'claim' | 'audit';
 export const App: React.FC = () => {
   const {
     walletState,
+    wallet,
     address,
+    walletName,
     hasLaceExtension,
+    hasOneAmExtension,
+    detectedWallets,
     isRealLace,
+    isRealWallet,
     error: walletError,
     connectLace,
+    connectOneAm,
+    connectWallet,
     connectPersona,
     disconnect,
     generateNewAccount,
     clearError,
   } = useWallet();
 
-  const { payrollState, resetDemo } = usePayroll();
+  const { payrollState, resetDemo } = usePayroll(wallet);
   const [activeTab, setActiveTab] = useState<Tab>('create');
   const [selectedPersona, setSelectedPersona] = useState<string>(PRESET_WALLETS[0].address);
   const [showPersonaPicker, setShowPersonaPicker] = useState<boolean>(false);
+  const [showWalletPicker, setShowWalletPicker]   = useState<boolean>(false);
 
   const isConnected = walletState === 'connected' && !!address;
   const currentPersona = PRESET_WALLETS.find((w) => w.address === address);
@@ -75,12 +83,12 @@ export const App: React.FC = () => {
                 <span
                   className="badge"
                   style={{
-                    background: isRealLace ? 'rgba(16, 185, 129, 0.15)' : 'rgba(139, 92, 246, 0.15)',
-                    color: isRealLace ? '#34d399' : '#c084fc',
-                    border: `1px solid ${isRealLace ? 'rgba(16, 185, 129, 0.3)' : 'rgba(139, 92, 246, 0.3)'}`,
+                    background: isRealWallet ? 'rgba(16, 185, 129, 0.15)' : 'rgba(139, 92, 246, 0.15)',
+                    color: isRealWallet ? '#34d399' : '#c084fc',
+                    border: `1px solid ${isRealWallet ? 'rgba(16, 185, 129, 0.3)' : 'rgba(139, 92, 246, 0.3)'}`,
                   }}
                 >
-                  <Radio size={12} /> {isRealLace ? 'Lace Preprod' : 'Simulated Persona'}
+                  <Radio size={12} /> {walletName ? `${walletName} (Preprod)` : isRealWallet ? 'On-Chain Preprod' : 'Simulated Persona'}
                 </span>
 
                 <select
@@ -125,11 +133,11 @@ export const App: React.FC = () => {
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={() => connectLace()}
+                onClick={() => setShowWalletPicker(true)}
                 disabled={walletState === 'connecting'}
               >
                 <Wallet size={16} />
-                {walletState === 'connecting' ? 'Awaiting Lace Approval...' : 'Connect Lace Wallet'}
+                {walletState === 'connecting' ? 'Awaiting Wallet Approval...' : 'Connect Wallet'}
               </button>
 
               <button
@@ -160,6 +168,174 @@ export const App: React.FC = () => {
           <AlertTriangle size={18} />
           <div style={{ flex: 1 }}>{walletError}</div>
           <button onClick={clearError} style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer' }}>✕</button>
+        </div>
+      )}
+
+      {/* Wallet Picker Modal (Lace vs 1AM Wallet) */}
+      {showWalletPicker && !isConnected && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px',
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              maxWidth: '480px',
+              width: '100%',
+              background: 'var(--bg-secondary)',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+            }}
+          >
+            <div className="card-title">
+              <span>Connect Midnight Wallet</span>
+              <button
+                onClick={() => setShowWalletPicker(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+              Select a supported Midnight DApp connector wallet to submit real ZK transactions to the Preprod network.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+              {/* Lace Option */}
+              <div
+                onClick={async () => {
+                  setShowWalletPicker(false);
+                  await connectLace();
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 18px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  background: 'var(--bg-tertiary)',
+                  cursor: 'pointer',
+                  transition: 'border-color 0.2s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--primary)')}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-color)')}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <Wallet size={20} color="#818cf8" />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>Midnight Lace Wallet</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Official IOG Lace browser extension with Midnight support
+                    </div>
+                  </div>
+                </div>
+                <span className={`badge ${hasLaceExtension ? 'badge-success' : 'badge-info'}`}>
+                  {hasLaceExtension ? 'Detected' : 'Connect'}
+                </span>
+              </div>
+
+              {/* 1AM Wallet Option */}
+              <div
+                onClick={async () => {
+                  setShowWalletPicker(false);
+                  await connectOneAm();
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 18px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  background: 'var(--bg-tertiary)',
+                  cursor: 'pointer',
+                  transition: 'border-color 0.2s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--primary)')}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-color)')}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <Wallet size={20} color="#34d399" />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>1AM Wallet</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      1AM Midnight native wallet extension
+                    </div>
+                  </div>
+                </div>
+                <span className={`badge ${hasOneAmExtension ? 'badge-success' : 'badge-info'}`}>
+                  {hasOneAmExtension ? 'Detected' : 'Connect'}
+                </span>
+              </div>
+
+              {/* Other detected wallets if any */}
+              {detectedWallets
+                .filter(
+                  (w) =>
+                    !w.name.toLowerCase().includes('lace') &&
+                    !w.name.toLowerCase().includes('1am') &&
+                    !w.name.toLowerCase().includes('oneam'),
+                )
+                .map((dw) => (
+                  <div
+                    key={dw.id}
+                    onClick={async () => {
+                      setShowWalletPicker(false);
+                      await connectWallet(dw.id);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '14px 18px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-tertiary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <Wallet size={20} color="#f59e0b" />
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{dw.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{dw.rdns || dw.id}</div>
+                      </div>
+                    </div>
+                    <span className="badge badge-success">Detected</span>
+                  </div>
+                ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowWalletPicker(false);
+                  setShowPersonaPicker(true);
+                }}
+                style={{ fontSize: '0.8rem' }}
+              >
+                <Users size={14} /> Use Demo Persona Instead
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowWalletPicker(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -343,6 +519,8 @@ export const App: React.FC = () => {
         {activeTab === 'create' && (
           <CreateRound
             currentAddress={address || ''}
+            wallet={wallet}
+            isRealLace={isRealWallet}
             onCreated={() => setActiveTab('assign')}
           />
         )}
@@ -350,6 +528,8 @@ export const App: React.FC = () => {
         {activeTab === 'assign' && (
           <AssignAmounts
             currentAddress={address || ''}
+            wallet={wallet}
+            isRealLace={isRealWallet}
             onAllAssigned={() => setActiveTab('finalize')}
           />
         )}
@@ -357,15 +537,21 @@ export const App: React.FC = () => {
         {activeTab === 'finalize' && (
           <FinalizeRound
             currentAddress={address || ''}
+            wallet={wallet}
+            isRealLace={isRealWallet}
             onFinalized={() => setActiveTab('claim')}
           />
         )}
 
         {activeTab === 'claim' && (
-          <ClaimAmount currentAddress={address || ''} />
+          <ClaimAmount
+            currentAddress={address || ''}
+            wallet={wallet}
+            isRealLace={isRealWallet}
+          />
         )}
 
-        {activeTab === 'audit' && <AuditPage />}
+        {activeTab === 'audit' && <AuditPage wallet={wallet} />}
       </main>
 
       {/* Footer / Privacy Guarantee Info */}

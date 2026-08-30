@@ -1,25 +1,28 @@
 import React, { useState } from 'react';
 import { usePayroll } from '../hooks/usePayroll';
-import { ShieldCheck, Search, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { NETWORK_CONFIG } from '../config';
+import { ShieldCheck, Search, AlertCircle, CheckCircle2, XCircle, ExternalLink } from 'lucide-react';
 
-export const AuditPage: React.FC = () => {
-  const { payrollState, verifyTotal, loading, error } = usePayroll();
+import type { ConnectedAPI } from '@midnight-ntwrk/dapp-connector-api';
+
+type AuditPageProps = {
+  wallet?: ConnectedAPI | null;
+};
+
+export const AuditPage: React.FC<AuditPageProps> = ({ wallet }) => {
+  const { payrollState, verifyTotal, loading, error } = usePayroll(wallet);
   const [verificationResult, setVerificationResult] = useState<{
     performed: boolean;
-    valid: boolean;
-    budget: bigint;
+    valid:     boolean;
+    budget:    bigint;
   } | null>(null);
 
   const handleVerify = async () => {
     try {
       const res = await verifyTotal();
-      setVerificationResult({
-        performed: true,
-        valid: res.valid,
-        budget: res.budget,
-      });
+      setVerificationResult({ performed: true, valid: res.valid, budget: res.budget });
     } catch {
-      // handled
+      // handled by usePayroll
     }
   };
 
@@ -43,8 +46,27 @@ export const AuditPage: React.FC = () => {
       </div>
 
       <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '16px' }}>
-        This page performs a zero-knowledge audit of the payroll round. Calling <strong>verify_total()</strong> independently re-verifies that the sum of all disbursed allocations exactly matches the funded budget without exposing any individual recipient's split.
+        This page reads the live on-chain ledger state. Calling{' '}
+        <strong>verify_total()</strong> reads the <code>sum_proof.valid</code> flag set
+        by the ZK finalize circuit — confirming the sum of all disbursed allocations exactly
+        matches the funded budget without exposing any individual split.
       </p>
+
+      {/* Contract explorer link */}
+      {payrollState.contractAddress && (
+        <div style={{ marginBottom: '20px' }}>
+          <a
+            href={`https://explorer.1am.xyz/contract/${payrollState.contractAddress}?network=preprod`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#818cf8', fontSize: '0.875rem', textDecoration: 'none' }}
+          >
+            <ExternalLink size={14} />
+            Contract: <span className="mono">{payrollState.contractAddress.slice(0, 20)}…</span>
+            — View on 1AM Preprod Explorer
+          </a>
+        </div>
+      )}
 
       {error && (
         <div className="callout" style={{ background: 'var(--danger-bg)', borderColor: 'var(--danger)', color: '#fca5a5', marginBottom: '16px' }}>
@@ -53,14 +75,7 @@ export const AuditPage: React.FC = () => {
       )}
 
       <div className="grid-2" style={{ marginBottom: '24px' }}>
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '8px',
-            padding: '16px',
-          }}
-        >
+        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px' }}>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Public Funded Budget
           </div>
@@ -72,14 +87,7 @@ export const AuditPage: React.FC = () => {
           </div>
         </div>
 
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '8px',
-            padding: '16px',
-          }}
-        >
+        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px' }}>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Round Lifecycle Status
           </div>
@@ -104,30 +112,24 @@ export const AuditPage: React.FC = () => {
           {payrollState.recipients.map((recip, idx) => (
             <div
               key={idx}
-              style={{
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '8px',
-                padding: '12px 16px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
+              style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             >
               <div>
                 <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                  Recipient {idx + 1}: <span className="mono" style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{recip.address}</span>
+                  Recipient {idx + 1}:{' '}
+                  <span className="mono" style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
+                    {recip.address}
+                  </span>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                   Commitment:{' '}
                   <span className="mono">
                     {recip.commitment_hash
-                      ? `${recip.commitment_hash.slice(0, 24)}...`
+                      ? `${recip.commitment_hash.slice(0, 24)}…`
                       : 'Pending'}
                   </span>
                 </div>
               </div>
-
               <div>
                 {recip.claimed ? (
                   <span className="badge badge-success">Disbursed & Claimed</span>
@@ -145,14 +147,8 @@ export const AuditPage: React.FC = () => {
       {verificationResult && (
         <div
           style={{
-            background: verificationResult.valid
-              ? 'rgba(16, 185, 129, 0.1)'
-              : 'rgba(239, 68, 68, 0.1)',
-            border: `1px solid ${
-              verificationResult.valid
-                ? 'rgba(16, 185, 129, 0.3)'
-                : 'rgba(239, 68, 68, 0.3)'
-            }`,
+            background: verificationResult.valid ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+            border: `1px solid ${verificationResult.valid ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
             borderRadius: '8px',
             padding: '20px',
             marginBottom: '20px',
@@ -167,13 +163,7 @@ export const AuditPage: React.FC = () => {
             <XCircle size={36} color="#ef4444" />
           )}
           <div>
-            <div
-              style={{
-                fontWeight: 700,
-                fontSize: '1.05rem',
-                color: verificationResult.valid ? '#34d399' : '#f87171',
-              }}
-            >
+            <div style={{ fontWeight: 700, fontSize: '1.05rem', color: verificationResult.valid ? '#34d399' : '#f87171' }}>
               {verificationResult.valid
                 ? 'ZK Total Sum Audit: VERIFIED (True)'
                 : 'ZK Total Sum Audit: UNVERIFIED (False)'}
@@ -195,7 +185,7 @@ export const AuditPage: React.FC = () => {
           disabled={loading}
         >
           <Search size={16} />
-          {loading ? 'Evaluating verify_total()...' : 'Verify Total Disbursed'}
+          {loading ? 'Reading On-Chain State…' : 'Verify Total Disbursed'}
         </button>
       </div>
     </div>
